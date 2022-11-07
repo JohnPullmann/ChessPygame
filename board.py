@@ -8,10 +8,19 @@ def board_pos_to_coords(board_pos) -> tuple:
 def coords_to_board_pos(coords) -> tuple:
         row = (coords[0]-Board.position_of_board[0])//(Board.size_of_board/8)
         col = (coords[1]-Board.position_of_board[1])//(Board.size_of_board/8)
+
+        #row = row if row >= 0 else 0
+        #row = row if row < 8 else 7
+        #col = col if col >= 0 else 0
+        #col = col if col < 8 else 7
+
+        #return (int(col), int(row))
+
         if 8 > col >= 0 and 8 > row >= 0:
-            return (col, row)
+            return (int(col), int(row))
         else:
-            return -1
+            return -1 
+
 
 
 class Board():
@@ -19,6 +28,7 @@ class Board():
     white_pieces = []
     black_pieces = []
     all_pieces =[]
+    selected_piece = None
     player1_name = "Player1" # name can be changed later
     player2_name = "Player2" # name can be changed later
     
@@ -37,7 +47,7 @@ class Board():
 
         self.rec = pygame.Rect(*Board.position_of_board, Board.size_of_board, Board.size_of_board)
 
-        self.board = [[0 for _ in range(8)] for _ in range(8)]
+        self.board = [[None for _ in range(8)] for _ in range(8)]
         #print(f"Board: {self.board}")
 
         self.board[6][0] = Pawn("white", (6, 0))
@@ -115,6 +125,9 @@ class Piece(Board):
         self.coords = board_pos_to_coords(self.board_pos) # (x, y)
         self.size = Board.size_of_board/8
         self.rec.update(*self.coords, self.size, self.size)
+    
+    def move(self) -> bool:
+        return True
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.color}, {self.board_pos})"
@@ -127,8 +140,8 @@ class Pawn(Piece):
         #print(f"{self.color} Pawn{self.board_pos[1]} position: {self.coords}")
         #print(f"{self.color} Pawn{self.board_pos[1]} size: {self.size}\n")
 
-    def move(self):
-        pass
+    def move(self) -> bool:
+        return True
 
 
 class Knight(Piece):
@@ -136,8 +149,6 @@ class Knight(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Knight"
 
-    def move(self):
-        pass
 
 
 class Bishop(Piece):
@@ -145,8 +156,6 @@ class Bishop(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Bishop"
 
-    def move(self):
-        pass
 
 
 class Rook(Piece):
@@ -154,8 +163,6 @@ class Rook(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Rook"
 
-    def move(self):
-        pass
 
 
 class King(Piece):
@@ -167,8 +174,6 @@ class King(Piece):
     def isEndangered(self) -> bool:
         return self.endangered
 
-    def move(self):
-        pass
 
 
 class Queen(Piece):
@@ -176,5 +181,3 @@ class Queen(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Queen"
     
-    def move(self):
-        pass

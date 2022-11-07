@@ -16,14 +16,14 @@ pygame.display.set_caption("Chess")
 icon = pygame.image.load(os.path.join("images/PNG/", "icon.png"))
 pygame.display.set_icon(icon)
 
-fullscreen = True
+fullscreen = False
 flags = pygame.RESIZABLE
 if fullscreen:
     flags = pygame.FULLSCREEN
 WINDOW = pygame.display.set_mode((WIDTH, HEIGHT),flags)
 
 
-board = "board2"
+board_color = "board2"
 
 
 def draw() -> None:
@@ -33,12 +33,14 @@ def draw() -> None:
 
     for p in Board.all_pieces:
         WINDOW.blit(p.image, p.coords)
-
+    if Board.selected_piece != None:
+        WINDOW.blit(Board.selected_piece.image, Board.selected_piece.coords)
+        
     pygame.display.update()
 
 
 def load_images() -> None:
-    Board.board_image_original_size = pygame.image.load(os.path.join("images/PNG/", f"{board}.png"))
+    Board.board_image_original_size = pygame.image.load(os.path.join("images/PNG/", f"{board_color}.png"))
     Board.identifiers_image_original_size = pygame.image.load(os.path.join("images/PNG/", "identifiers.png"))
 
     for p in Board.all_pieces:
@@ -63,6 +65,60 @@ def resize_window(board) -> None:
         p.resize_window_reset_pos()
 
     transform_images() 
+
+
+def select_piece(mouse_x: float, mouse_y: float, board: Board) -> None:
+
+    mouse_board_pos = coords_to_board_pos((mouse_x, mouse_y))
+    if mouse_board_pos != -1:
+        selected_piece = board.board[mouse_board_pos[0]][mouse_board_pos[1]]
+        print(selected_piece)
+    else:
+        selected_piece = None
+    
+    if selected_piece != None:
+        selected_piece.selected = True
+        Board.selected_piece = selected_piece
+        #print(f"Coords: {(mouse_x, mouse_y)}\nBoard position: {mouse_board_pos}\nSelected piece: {selected_piece}")
+
+
+def selected_piece_move_floating(mouse_x: float, mouse_y: float) -> None:
+    if Board.selected_piece != None:
+        x = mouse_x
+        y = mouse_y
+        x = x if x > Board.position_of_board[0] else Board.position_of_board[0]
+        x = x if x < Board.position_of_board[0]+Board.size_of_board else Board.position_of_board[0]+Board.size_of_board
+        y = y if y > Board.position_of_board[1] else Board.position_of_board[1]
+        y = y if y < Board.position_of_board[1]+Board.size_of_board else Board.position_of_board[1]+Board.size_of_board
+        
+        sel_piece_size = Board.selected_piece.size
+        Board.selected_piece.coords = (x-(sel_piece_size/2), y-(sel_piece_size/2))    
+
+
+def selected_piece_drop(mouse_x, mouse_y, board: Board) -> None:
+    if Board.selected_piece != None:
+        sel_piece_board_pos = coords_to_board_pos((mouse_x, mouse_y))
+        if sel_piece_board_pos != -1:
+            sel_piece_pos = board_pos_to_coords(sel_piece_board_pos)
+            
+            if Board.selected_piece.move():
+                print(f"Piece drop position: {sel_piece_board_pos}")
+                board.board[Board.selected_piece.board_pos[0]][Board.selected_piece.board_pos[1]] = None
+                board.board[sel_piece_board_pos[0]][sel_piece_board_pos[1]] = Board.selected_piece
+
+                
+
+                Board.selected_piece.coords = sel_piece_pos
+                Board.selected_piece.board_pos = sel_piece_board_pos
+                Board.selected_piece = None
+            else:
+                print(f"Piece drop to its old position")
+                Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
+                Board.selected_piece = None
+        else:
+            print(f"Piece drop to its old position")
+            Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
+            Board.selected_piece = None
 
 
 def main():
@@ -94,9 +150,31 @@ def main():
             #print(event.type)
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.WINDOWRESIZED:
                 print("RESIZED")
+
                 resize_window(board)
+
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                print("\nMouse down")
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+
+                select_piece(mouse_x, mouse_y, board) 
+
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                print("\nMouse up")
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+                selected_piece_drop(mouse_x, mouse_y, board)
+                
+            
+            if event.type == pygame.MOUSEMOTION:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+
+                selected_piece_move_floating(mouse_x, mouse_y)
 
         draw()
     
