@@ -42,6 +42,9 @@ class Board():
     identifiers_image = None # image loaded 
     identifiers_image_original_size = None # image loaded later
 
+    selected_square_image = None  # image loaded later
+    selected_square_image_original_size = None  # image loaded later
+    mouse_on_square = [(),()] # [board_pos, board_pos_coords]
 
     def __init__(self):
 
