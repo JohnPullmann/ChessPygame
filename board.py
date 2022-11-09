@@ -9,13 +9,6 @@ def coords_to_board_pos(coords) -> tuple:
         row = (coords[0]-Board.position_of_board[0])//(Board.size_of_board/8)
         col = (coords[1]-Board.position_of_board[1])//(Board.size_of_board/8)
 
-        #row = row if row >= 0 else 0
-        #row = row if row < 8 else 7
-        #col = col if col >= 0 else 0
-        #col = col if col < 8 else 7
-
-        #return (int(col), int(row))
-
         if 8 > col >= 0 and 8 > row >= 0:
             return (int(col), int(row))
         else:
@@ -99,8 +92,8 @@ class Board():
 
         #print(f"Board: {self.board}")
 
-        Board.player1 = Player("Player1", "white") # player options can be changed later
-        Board.player2 = Player("Player2", "black") # player options can be changed later 
+        Board.player1 = Player("Player1", "white", "Player") # player options can be changed later
+        Board.player2 = Player("Player2", "black", "Player") # player options can be changed later 
         if Board.player1.color == "white":
             Board.player_on_turn = Board.player1
         elif Board.player2.color == "white":
@@ -130,13 +123,14 @@ class Board():
                     selected_piece.selected = True
                     Board.holding_piece = selected_piece
                     Board.selected_piece = selected_piece
+                    selected_piece.validate_moves(self)
+                    #print(f"Valid moves {selected_piece.type}: {selected_piece.valid_moves}")
                 else:
                     Board.selected_piece = None
                     Board.holding_piece = None
         else:
             Board.selected_piece = None
             Board.holding_piece = None
-
 
 
 
@@ -150,12 +144,15 @@ class Piece(Board):
         self.image_original_size = None # image loaded later
         self.selected = selected
         self.rec = pygame.Rect(*self.coords, self.size, self.size)
+        self.type = None
+        self.valid_moves = [] # updates when spiece selected, [(col, row, attact)]
 
         if self.color == "white":
             Board.white_pieces.append(self)
         elif self.color == "black":
             Board.black_pieces.append(self)
         Board.all_pieces.append(self)
+
 
     def isSelected(self) -> bool:
         return self.selected
@@ -165,27 +162,54 @@ class Piece(Board):
         self.size = Board.size_of_board/8
         self.rec.update(*self.coords, self.size, self.size)
     
-    def move(self, dest_board_pos) -> bool:
-        if self.board_pos != dest_board_pos:
-            if Board.player_on_turn.color == self.color:
-                print(f"MOVEMENT, {Board.player_on_turn.name}\nFROM: {self.board_pos}  TO: {dest_board_pos}\n")
+    def move(self, dest_board_pos, game_board: Board) -> bool:
+        if Board.player_on_turn.color != self.color:
+            print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {self.color}")
+            return False
 
-                if Board.player_on_turn == Board.player1:
-                    Board.player_on_turn = Board.player2
-                elif Board.player_on_turn == Board.player2:
-                    Board.player_on_turn = Board.player1
-                else:
-                    print("Problem!!!, Program didn't switch players!")
-                print(f"Switched players, player on move: {Board.player_on_turn.name}")
-                Board.last_turn = [self.board_pos, dest_board_pos]
-
-                return True
-
+        if (dest_board_pos[0], dest_board_pos[1], False) not in self.valid_moves:
+            if (dest_board_pos[0], dest_board_pos[1], True) not in self.valid_moves:
+                print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}\n")
+                return False
             else:
-                print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {self.color}")
+                self.attack(dest_board_pos, game_board)
+            
+
+        print(f"MOVEMENT, {Board.player_on_turn.name}\nFROM: {self.board_pos}  TO: {dest_board_pos}")
+        Board.last_turn = [self.board_pos, dest_board_pos]
+
+        # Switch player on turn
+        if Board.player_on_turn == Board.player1:
+            Board.player_on_turn = Board.player2
+        elif Board.player_on_turn == Board.player2:
+            Board.player_on_turn = Board.player1
         else:
-            print(f"Same board pos, not moved \nFROM: {self.board_pos}  TO: {dest_board_pos}\n")
-        return False
+            print("Problem!!!, Program didn't switch players!")
+        print(f"Switched players, player on move: {Board.player_on_turn.name}\n")
+
+
+        game_board.board[Board.selected_piece.board_pos[0]][Board.selected_piece.board_pos[1]] = None
+        game_board.board[dest_board_pos[0]][dest_board_pos[1]] = Board.selected_piece
+
+        Board.selected_piece.coords = board_pos_to_coords(dest_board_pos)
+        Board.selected_piece.board_pos = dest_board_pos
+        Board.holding_piece = None
+        Board.selected_piece = None
+
+        return True
+
+    def attack(self, dest_board_pos, game_board: Board) -> bool:
+        des_col, des_row = dest_board_pos 
+        attacked_piece = game_board.board[des_col][des_row]
+        game_board.board[des_col][des_row] = None
+        white_pieces = []
+        black_pieces = []
+        Board.all_pieces.remove(attacked_piece)
+        if attacked_piece.color == "white":
+            Board.white_pieces.remove(attacked_piece)
+        else:
+            Board.black_pieces.remove(attacked_piece)
+        print(f"{self} attacked {attacked_piece}")
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.color}, {self.board_pos})"
@@ -195,8 +219,37 @@ class Pawn(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Pawn"
-        #print(f"{self.color} Pawn{self.board_pos[1]} position: {self.coords}")
-        #print(f"{self.color} Pawn{self.board_pos[1]} size: {self.size}\n")
+
+    def validate_moves(self, game_board) -> None:
+        # add special move !
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1        
+
+        
+        if board[now_col+(1*color_col_mult)][now_row] == None and 0 <= now_col+(1*color_col_mult) < 8: # one forward
+            self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
+
+        if board[now_col+(2*color_col_mult)][now_row] == None and 0 <= now_col+(2*color_col_mult) < 8: # first move two forward 
+            if now_col == 1 or now_col == 6:
+                self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+
+        for move_row_mod, move_col_mod in [(1,1), (-1,1)]: # one up diagonal, one left diagonal
+            des_col = now_col+(move_col_mod*color_col_mult)
+            des_row = now_row+move_row_mod
+            if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                des_piece = board[des_col][des_row]
+                if des_piece != None:
+                    attack = True
+                    if des_piece.color == self.color:
+                        continue
+                else:
+                    attack = False
+                if attack == True:
+                    self.valid_moves.append((des_col, des_row, attack))
 
     #def move(self) -> bool:
     #    return True
@@ -206,21 +259,103 @@ class Knight(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Knight"
+        self.moves = [(1,2), (2,1), (2,-1), (1,-2), (-1,-2), (-2,-1), (-2,1), (-1,2)]
 
+    def validate_moves(self, game_board) -> None:
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1    
+
+        for move_row_mod, move_col_mod in self.moves: 
+            des_col = now_col+(move_col_mod*color_col_mult)
+            des_row = now_row+move_row_mod
+            if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                des_piece = board[des_col][des_row]
+                if des_piece != None:
+                    attack = True
+                    if des_piece.color == self.color:
+                        continue
+                else:
+                    attack = False
+
+                self.valid_moves.append((des_col, des_row, attack))
 
 
 class Bishop(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Bishop"
+        self.moves = [[(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7)],
+                      [(-1,1), (-2,2), (-3,3), (-4,4), (-5,5), (-6,6), (-7,7)],
+                      [(1,-1), (2,-2), (3,-3), (4,-4), (5,-5), (6,-6), (7,-7)],
+                      [(-1,-1), (-2,-2), (-3,-3), (-4,-4), (-5,-5), (-6,-6), (-7,-7)]]
 
+    def validate_moves(self, game_board) -> None:
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1    
+
+        for set_of_moves in self.moves:
+            for move_row_mod, move_col_mod in set_of_moves: 
+                des_col = now_col+(move_col_mod*color_col_mult)
+                des_row = now_row+move_row_mod
+                if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                    des_piece = board[des_col][des_row]
+                    if des_piece != None:
+                        attack = True
+                        if des_piece.color == self.color:
+                            break
+                        self.valid_moves.append((des_col, des_row, attack))
+                        break
+                    else:
+                        attack = False
+
+                    self.valid_moves.append((des_col, des_row, attack))
+                else:
+                    break
 
 
 class Rook(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Rook"
+        self.moves = [[(0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7)],
+                      [(0,-1), (0,-2), (0,-3), (0,-4), (0,-5), (0,-6), (0,-7)],
+                      [(1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0)],
+                      [(-1,0), (-2,0), (-3,0), (-4,0), (-5,0), (-6,0), (-7,0)]]
+    
+    def validate_moves(self, game_board) -> None:
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1    
 
+        for set_of_moves in self.moves:
+            for move_row_mod, move_col_mod in set_of_moves: 
+                des_col = now_col+(move_col_mod*color_col_mult)
+                des_row = now_row+move_row_mod
+                if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                    des_piece = board[des_col][des_row]
+                    if des_piece != None:
+                        attack = True
+                        if des_piece.color == self.color:
+                            break
+                        self.valid_moves.append((des_col, des_row, attack))
+                        break
+                    else:
+                        attack = False
+
+                    self.valid_moves.append((des_col, des_row, attack))
+                else:
+                    break
 
 
 class King(Piece):
@@ -228,19 +363,82 @@ class King(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "King"
         self.endangered = False
+        self.moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (1,-1), (-1,-1), (-1,1)]  
 
     def isEndangered(self) -> bool:
         return self.endangered
 
+    def validate_moves(self, game_board) -> None:
+        # Change valid moves to be only moves that will not put king in danger next turn !!!
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1    
+
+        for move_row_mod, move_col_mod in self.moves: 
+            des_col = now_col+(move_col_mod*color_col_mult)
+            des_row = now_row+move_row_mod
+            if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                des_piece = board[des_col][des_row]
+                print("a", des_piece, (move_row_mod, move_col_mod), (des_col, des_row))
+                if des_piece != None:
+                    print("b")
+                    attack = True
+                    if des_piece.color == self.color:
+                        print("c")
+                        continue
+                else:
+                    attack = False
+
+                self.valid_moves.append((des_col, des_row, attack))
 
 
 class Queen(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Queen"
-    
+        self.moves = [[(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7)],
+                      [(-1,1), (-2,2), (-3,3), (-4,4), (-5,5), (-6,6), (-7,7)],
+                      [(1,-1), (2,-2), (3,-3), (4,-4), (5,-5), (6,-6), (7,-7)],
+                      [(-1,-1), (-2,-2), (-3,-3), (-4,-4), (-5,-5), (-6,-6), (-7,-7)],
+                      [(0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7)],
+                      [(0,-1), (0,-2), (0,-3), (0,-4), (0,-5), (0,-6), (0,-7)],
+                      [(1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0)],
+                      [(-1,0), (-2,0), (-3,0), (-4,0), (-5,0), (-6,0), (-7,0)]]
+
+    def validate_moves(self, game_board) -> None:
+        board = game_board.board
+        now_col, now_row = self.board_pos
+        color_col_mult = 1
+        self.valid_moves = []
+        if self.color == "white":
+            color_col_mult = -1    
+
+        for set_of_moves in self.moves:
+            for move_row_mod, move_col_mod in set_of_moves: 
+                des_col = now_col+(move_col_mod*color_col_mult)
+                des_row = now_row+move_row_mod
+                if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                    des_piece = board[des_col][des_row]
+                    if des_piece != None:
+                        attack = True
+                        if des_piece.color == self.color:
+                            break
+                        self.valid_moves.append((des_col, des_row, attack))
+                        break
+                    else:
+                        attack = False
+
+                    self.valid_moves.append((des_col, des_row, attack))
+                else:
+                    break
+
+
 
 class Player(Board):
-    def __init__(self, name: str, color: str):
+    def __init__(self, name: str, color: str, type: str):
         self.name = name
         self.color = color
+        self.type = type

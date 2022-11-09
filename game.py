@@ -52,8 +52,6 @@ def draw() -> None:
     if Board.holding_piece != None:
         WINDOW.blit(Board.holding_piece.image, Board.holding_piece.coords)
     
-    
-    
     pygame.display.update()
 
 
@@ -111,15 +109,10 @@ def selected_piece_drop(mouse_x: float, mouse_y: float, board: Board) -> None:
         new_board_pos = coords_to_board_pos((mouse_x, mouse_y))
         if new_board_pos != -1:
             new_piece_pos = board_pos_to_coords(new_board_pos)
-            if Board.selected_piece.move(new_board_pos):
+            
+            if Board.selected_piece.move(new_board_pos, board):
                 #print(f"Piece drop position: {sel_piece_board_pos}")
-                board.board[Board.selected_piece.board_pos[0]][Board.selected_piece.board_pos[1]] = None
-                board.board[new_board_pos[0]][new_board_pos[1]] = Board.selected_piece
-
-                Board.selected_piece.coords = new_piece_pos
-                Board.selected_piece.board_pos = new_board_pos
-                Board.holding_piece = None
-                Board.selected_piece = None
+                pass
             else:
                 print(f"Piece drop to its old position")
                 Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
@@ -170,13 +163,13 @@ def main():
                 running = False
 
             elif event.type == pygame.WINDOWRESIZED:
-                print("RESIZED")
+                #print("RESIZED")
 
                 resize_window(board)
 
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                print("\nMouse down")
+                #print("\nMouse down")
                 mouse_x, mouse_y = pygame.mouse.get_pos()
 
                 board.select_piece(mouse_x, mouse_y)
@@ -184,7 +177,7 @@ def main():
 
 
             if event.type == pygame.MOUSEBUTTONUP:
-                print("\nMouse up")
+                #print("\nMouse up")
                 mouse_x, mouse_y = pygame.mouse.get_pos()
             
                 selected_piece_drop(mouse_x, mouse_y, board)
