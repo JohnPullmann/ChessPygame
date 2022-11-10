@@ -9,7 +9,7 @@ BLACK = (0,0,0)
 BACKGROUND_COLOR = (49,46,43)
 
 # create window
-WIDTH, HEIGHT = 1280, 720
+WIDTH, HEIGHT = 800, 600
 pygame.display.set_caption("Chess")
 
 
@@ -24,7 +24,6 @@ WINDOW = pygame.display.set_mode((WIDTH, HEIGHT),flags)
 
 
 board_color = "board2"
-
 
 def draw() -> None:
     WINDOW.fill(BACKGROUND_COLOR)
@@ -114,11 +113,11 @@ def selected_piece_drop(mouse_x: float, mouse_y: float, board: Board) -> None:
                 #print(f"Piece drop position: {sel_piece_board_pos}")
                 pass
             else:
-                print(f"Piece drop to its old position")
+                print(f"Piece drop to its old position\n")
                 Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
                 Board.holding_piece = None
         else:
-            print(f"Piece drop to its old position")
+            print(f"Piece drop to its old position\n")
             Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
             Board.holding_piece = None
 
@@ -196,3 +195,40 @@ def main():
 if __name__ == "__main__":
     main()
     pygame.quit()
+
+
+##TODO##
+# Implement:
+# - castling - king move
+# - king not being able to move to dangerous positions
+# - change piece type when pawn moves to end of board
+# - check - king must move to save when endangered
+# - chessmate - ending of game
+# - draw - ending of game
+# - surrender - ending of game
+# - reseting of game
+# - chosing name and color
+
+# player vs player
+# - on one device
+# -- switching showing of board 
+# - localy on two devices
+# -- surrender when someone quits
+
+#/ player vs computer
+
+# Menu
+# - local play PvP
+# - fullscreen and scale window switching 
+# - changing styles
+
+# implement info around board 
+# - name, entering a name
+#/ - score
+
+# On website watching matches
+
+# moving board.py to some dictionary 
+
+# improving readme
+

@@ -163,20 +163,37 @@ class Piece(Board):
         self.rec.update(*self.coords, self.size, self.size)
     
     def move(self, dest_board_pos, game_board: Board) -> bool:
+        color_col_mult = 1
+        if self.color == "white":
+            color_col_mult = -1
+
         if Board.player_on_turn.color != self.color:
             print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {self.color}")
             return False
 
+        attacking = False
         if (dest_board_pos[0], dest_board_pos[1], False) not in self.valid_moves:
             if (dest_board_pos[0], dest_board_pos[1], True) not in self.valid_moves:
-                print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}\n")
+                print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}")
                 return False
             else:
-                self.attack(dest_board_pos, game_board)
-            
+                attacking = True
+                
+
+        # ---------------------- Special attacks
+        if self.type == "Pawn" and attacking == False: # en passant move, left and right
+            if dest_board_pos[1] != self.board_pos[1]: #  - test if not normal forward move
+                self.attack((dest_board_pos[0]-color_col_mult, dest_board_pos[1]), game_board) 
+                attacking = False
+        if attacking == True:
+            self.attack(dest_board_pos, game_board)
+        # ----------------------
 
         print(f"MOVEMENT, {Board.player_on_turn.name}\nFROM: {self.board_pos}  TO: {dest_board_pos}")
         Board.last_turn = [self.board_pos, dest_board_pos]
+        if self.type in ["King","Rook", "Pawn"]:
+            self.moved = True
+
 
         # Switch player on turn
         if Board.player_on_turn == Board.player1:
@@ -202,8 +219,6 @@ class Piece(Board):
         des_col, des_row = dest_board_pos 
         attacked_piece = game_board.board[des_col][des_row]
         game_board.board[des_col][des_row] = None
-        white_pieces = []
-        black_pieces = []
         Board.all_pieces.remove(attacked_piece)
         if attacked_piece.color == "white":
             Board.white_pieces.remove(attacked_piece)
@@ -219,6 +234,7 @@ class Pawn(Piece):
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         super().__init__(color, board_pos, selected)
         self.type = "Pawn"
+        self.moved = False
 
     def validate_moves(self, game_board) -> None:
         # add special move !
@@ -234,8 +250,15 @@ class Pawn(Piece):
             self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
 
         if board[now_col+(2*color_col_mult)][now_row] == None and 0 <= now_col+(2*color_col_mult) < 8: # first move two forward 
-            if now_col == 1 or now_col == 6:
+            if self.moved == False:
                 self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+
+        for direction in [1,-1]: # en passant move, left and right
+            if 0 <= now_col+(1*color_col_mult) < 8 and 0 <= now_row+(direction) < 8 : 
+                attacked_pawn = board[now_col][now_row+(direction)]
+                if board[now_col+(1*color_col_mult)][now_row+(direction)] == None and isinstance(attacked_pawn, Pawn):
+                    if Board.last_turn[0] == (now_col+(2*color_col_mult), now_row+(direction)) and Board.last_turn[1] == (now_col, now_row+(direction)):
+                        self.valid_moves.append((now_col+(1*color_col_mult), now_row+(direction), False))
 
         for move_row_mod, move_col_mod in [(1,1), (-1,1)]: # one up diagonal, one left diagonal
             des_col = now_col+(move_col_mod*color_col_mult)
@@ -329,7 +352,8 @@ class Rook(Piece):
                       [(0,-1), (0,-2), (0,-3), (0,-4), (0,-5), (0,-6), (0,-7)],
                       [(1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0)],
                       [(-1,0), (-2,0), (-3,0), (-4,0), (-5,0), (-6,0), (-7,0)]]
-    
+        self.moved = False
+
     def validate_moves(self, game_board) -> None:
         board = game_board.board
         now_col, now_row = self.board_pos
@@ -364,6 +388,7 @@ class King(Piece):
         self.type = "King"
         self.endangered = False
         self.moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (1,-1), (-1,-1), (-1,1)]  
+        self.moved = False
 
     def isEndangered(self) -> bool:
         return self.endangered
