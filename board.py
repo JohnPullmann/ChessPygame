@@ -185,6 +185,27 @@ class Piece(Board):
             if dest_board_pos[1] != self.board_pos[1]: #  - test if not normal forward move
                 self.attack((dest_board_pos[0]-color_col_mult, dest_board_pos[1]), game_board) 
                 attacking = False
+
+        elif self.type == "King":
+            if dest_board_pos[1] - self.board_pos[1] == -2: # castling left
+                print(f"MOVEMENT, {Board.player_on_turn.name}\nCastling left")
+                rook = game_board.board[self.board_pos[0]][self.board_pos[1]-4]
+                rook.moved = True
+                game_board.board[self.board_pos[0]][self.board_pos[1]-4] = None
+                game_board.board[self.board_pos[0]][self.board_pos[1]-1] = rook
+                rook.coords = board_pos_to_coords((self.board_pos[0], self.board_pos[1]-1))
+                rook.board_pos = (self.board_pos[0], self.board_pos[1]-1)
+                #move rook one to right +, of dest
+            if dest_board_pos[1] - self.board_pos[1] == 2: # castling right
+                print(f"MOVEMENT, {Board.player_on_turn.name}\nCastling right")
+                rook = game_board.board[self.board_pos[0]][self.board_pos[1]+3]
+                rook.moved = True
+                game_board.board[self.board_pos[0]][self.board_pos[1]+3] = None
+                game_board.board[self.board_pos[0]][self.board_pos[1]+1] = rook
+                rook.coords = board_pos_to_coords((self.board_pos[0], self.board_pos[1]+1))
+                rook.board_pos = (self.board_pos[0], self.board_pos[1]+1)
+
+                #move rook one to left -, of dest
         if attacking == True:
             self.attack(dest_board_pos, game_board)
         # ----------------------
@@ -402,17 +423,25 @@ class King(Piece):
         if self.color == "white":
             color_col_mult = -1    
 
+        
+        if self.moved == False: #castling
+            row = board[now_col]
+            print("aaaaaaaaaaaaaaaa", row[now_row-1] == row[now_row-2] == row[now_row-3] == None, isinstance(row[now_row-4], Rook))
+            if row[now_row-1] == row[now_row-2] == row[now_row-3] == None and isinstance(row[now_row-4], Rook):
+                if row[now_row-4].moved == False:
+                    self.valid_moves.append((now_col, now_row-2, False))
+            elif row[now_row+1] == row[now_row+2] == None and isinstance(row[now_row+3], Rook):
+                if row[now_row+3].moved == False:
+                    self.valid_moves.append((now_col, now_row+2, False))
+
         for move_row_mod, move_col_mod in self.moves: 
             des_col = now_col+(move_col_mod*color_col_mult)
             des_row = now_row+move_row_mod
             if 0 <= des_col < 8 and 0 <= des_row < 8: 
                 des_piece = board[des_col][des_row]
-                print("a", des_piece, (move_row_mod, move_col_mod), (des_col, des_row))
                 if des_piece != None:
-                    print("b")
                     attack = True
                     if des_piece.color == self.color:
-                        print("c")
                         continue
                 else:
                     attack = False
