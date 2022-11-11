@@ -1,4 +1,5 @@
 import pygame
+from pprint import pprint
 
 
 def board_pos_to_coords(board_pos) -> tuple:
@@ -45,6 +46,8 @@ class Board():
     mouse_on_square = [(),()] # [board_pos, board_pos_coords]
 
     last_turn = [(),()] # [start_board_pos, end_board_pos]
+    danger_zone_black = [[False for _ in range(8)] for _ in range(8)]
+    danger_zone_white = [[False for _ in range(8)] for _ in range(8)]
 
     def __init__(self):
 
@@ -123,7 +126,12 @@ class Board():
                     selected_piece.selected = True
                     Board.holding_piece = selected_piece
                     Board.selected_piece = selected_piece
-                    selected_piece.validate_moves(self)
+
+                    #selected_piece.validate_moves(self)
+                    Board.validate_all_pieces(self)
+                    #for piece in Board.all_pieces:
+                    #    piece.validate_moves(self)
+                    #print("end")
                     #print(f"Valid moves {selected_piece.type}: {selected_piece.valid_moves}")
                 else:
                     Board.selected_piece = None
@@ -132,6 +140,27 @@ class Board():
             Board.selected_piece = None
             Board.holding_piece = None
 
+    def validate_all_pieces(self) -> None:
+        Board.danger_zone_black = [[False for _ in range(8)] for _ in range(8)]
+        Board.danger_zone_white = [[False for _ in range(8)] for _ in range(8)]
+        for piece in Board.all_pieces:
+            piece.validate_moves(self)
+        
+        kings = [piece for piece in Board.all_pieces if isinstance(piece, King)]
+        for king in kings: # validate again king at the end
+            king.validate_moves(self)
+        print("Kings:", kings)
+        #for white_piece in Board.white_pieces:
+        #    for move in white_piece.valid_moves:
+        #        Board.danger_zone_black[move[0]][move[1]] = True
+        #for black_piece in Board.black_pieces:
+        #    for move in black_piece.valid_moves:
+                # Board.danger_zone_white[move[0]][move[1]] = True
+
+        print("White danger zone: ")
+        pprint(Board.danger_zone_white)
+        print("Black danger zone: ")
+        pprint(Board.danger_zone_black)
 
 
 class Piece(Board):
@@ -285,6 +314,12 @@ class Pawn(Piece):
             des_col = now_col+(move_col_mod*color_col_mult)
             des_row = now_row+move_row_mod
             if 0 <= des_col < 8 and 0 <= des_row < 8: 
+
+                if self.color == "white":
+                    Board.danger_zone_black[des_col][des_row] = True
+                else:
+                    Board.danger_zone_white[des_col][des_row] = True
+
                 des_piece = board[des_col][des_row]
                 if des_piece != None:
                     attack = True
@@ -317,6 +352,12 @@ class Knight(Piece):
             des_col = now_col+(move_col_mod*color_col_mult)
             des_row = now_row+move_row_mod
             if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                
+                if self.color == "white":
+                    Board.danger_zone_black[des_col][des_row] = True
+                else:
+                    Board.danger_zone_white[des_col][des_row] = True
+
                 des_piece = board[des_col][des_row]
                 if des_piece != None:
                     attack = True
@@ -350,6 +391,12 @@ class Bishop(Piece):
                 des_col = now_col+(move_col_mod*color_col_mult)
                 des_row = now_row+move_row_mod
                 if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                    
+                    if self.color == "white":
+                        Board.danger_zone_black[des_col][des_row] = True
+                    else:
+                        Board.danger_zone_white[des_col][des_row] = True
+
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
                         attack = True
@@ -388,6 +435,12 @@ class Rook(Piece):
                 des_col = now_col+(move_col_mod*color_col_mult)
                 des_row = now_row+move_row_mod
                 if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                        
+                    if self.color == "white":
+                        Board.danger_zone_black[des_col][des_row] = True
+                    else:
+                        Board.danger_zone_white[des_col][des_row] = True
+
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
                         attack = True
@@ -423,21 +476,31 @@ class King(Piece):
         if self.color == "white":
             color_col_mult = -1    
 
-        
+        if self.color == "white":
+            danger_zone = Board.danger_zone_white
+        else:
+            danger_zone = Board.danger_zone_black
+
         if self.moved == False: #castling
             row = board[now_col]
-            print("aaaaaaaaaaaaaaaa", row[now_row-1] == row[now_row-2] == row[now_row-3] == None, isinstance(row[now_row-4], Rook))
+            danger_row = danger_zone[now_col]
             if row[now_row-1] == row[now_row-2] == row[now_row-3] == None and isinstance(row[now_row-4], Rook):
-                if row[now_row-4].moved == False:
+                if danger_row[now_row-1] == danger_row[now_row-2] == danger_row[now_row-3] == False and row[now_row-4].moved == False:
                     self.valid_moves.append((now_col, now_row-2, False))
             elif row[now_row+1] == row[now_row+2] == None and isinstance(row[now_row+3], Rook):
-                if row[now_row+3].moved == False:
+                if danger_row[now_row+1] == danger_row[now_row+2] == False and row[now_row+3].moved == False:
                     self.valid_moves.append((now_col, now_row+2, False))
 
         for move_row_mod, move_col_mod in self.moves: 
             des_col = now_col+(move_col_mod*color_col_mult)
             des_row = now_row+move_row_mod
             if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                
+                if self.color == "white":
+                    Board.danger_zone_black[des_col][des_row] = True
+                else:
+                    Board.danger_zone_white[des_col][des_row] = True
+
                 des_piece = board[des_col][des_row]
                 if des_piece != None:
                     attack = True
@@ -445,8 +508,10 @@ class King(Piece):
                         continue
                 else:
                     attack = False
-
-                self.valid_moves.append((des_col, des_row, attack))
+                print((des_col, des_row))
+                print(danger_zone[des_col][des_row])
+                if danger_zone[des_col][des_row] == False:
+                    self.valid_moves.append((des_col, des_row, attack))
 
 
 class Queen(Piece):
@@ -475,6 +540,12 @@ class Queen(Piece):
                 des_col = now_col+(move_col_mod*color_col_mult)
                 des_row = now_row+move_row_mod
                 if 0 <= des_col < 8 and 0 <= des_row < 8: 
+                        
+                    if self.color == "white":
+                        Board.danger_zone_black[des_col][des_row] = True
+                    else:
+                        Board.danger_zone_white[des_col][des_row] = True
+
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
                         attack = True

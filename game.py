@@ -199,6 +199,7 @@ if __name__ == "__main__":
 
 ##TODO##
 # Implement:
+# - change castling to only be possible when area not endangered
 # - king not being able to move to dangerous positions
 # - change piece type when pawn moves to end of board
 # - check - king must move to save when endangered
