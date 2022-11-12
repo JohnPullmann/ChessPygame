@@ -24,6 +24,8 @@ class Board():
     all_pieces =[]
     holding_piece = None
     selected_piece = None
+    white_king = None
+    black_king = None
 
     player1 = None
     player2 = None
@@ -127,11 +129,6 @@ class Board():
                     Board.holding_piece = selected_piece
                     Board.selected_piece = selected_piece
 
-                    #selected_piece.validate_moves(self)
-                    Board.validate_all_pieces(self)
-                    #for piece in Board.all_pieces:
-                    #    piece.validate_moves(self)
-                    #print("end")
                     #print(f"Valid moves {selected_piece.type}: {selected_piece.valid_moves}")
                 else:
                     Board.selected_piece = None
@@ -143,27 +140,23 @@ class Board():
     def validate_all_pieces(self) -> None:
         Board.danger_zone_black = [[False for _ in range(8)] for _ in range(8)]
         Board.danger_zone_white = [[False for _ in range(8)] for _ in range(8)]
+
         for piece in Board.all_pieces:
             piece.validate_moves(self)
         
-        kings = [piece for piece in Board.all_pieces if isinstance(piece, King)]
-        for king in kings: # validate again king at the end
-            king.validate_moves(self)
-        print("Kings:", kings)
-        #for white_piece in Board.white_pieces:
-        #    for move in white_piece.valid_moves:
-        #        Board.danger_zone_black[move[0]][move[1]] = True
-        #for black_piece in Board.black_pieces:
-        #    for move in black_piece.valid_moves:
-                # Board.danger_zone_white[move[0]][move[1]] = True
+        Board.white_king.validate_moves(self)
+        Board.black_king.validate_moves(self)
 
-        print("White danger zone: ")
-        pprint(Board.danger_zone_white)
-        print("Black danger zone: ")
-        pprint(Board.danger_zone_black)
+        for piece in Board.all_pieces:
+            piece.validate_moves(self)
+
+        # print("White danger zone: ")
+        # pprint(Board.danger_zone_white)
+        # print("Black danger zone: ")
+        # pprint(Board.danger_zone_black)
 
 
-class Piece(Board):
+class Piece():
     def __init__(self, color: str, board_pos: tuple, selected: bool = False):
         self.color = color # "white" or "black"
         self.board_pos = board_pos # (column, row)
@@ -216,6 +209,8 @@ class Piece(Board):
                 attacking = False
 
         elif self.type == "King":
+            self.endangered = False
+            self.enemy_piece_attacking = None
             if dest_board_pos[1] - self.board_pos[1] == -2: # castling left
                 print(f"MOVEMENT, {Board.player_on_turn.name}\nCastling left")
                 rook = game_board.board[self.board_pos[0]][self.board_pos[1]-4]
@@ -263,6 +258,8 @@ class Piece(Board):
         Board.holding_piece = None
         Board.selected_piece = None
 
+        Board.validate_all_pieces(game_board)
+
         return True
 
     def attack(self, dest_board_pos, game_board: Board) -> bool:
@@ -275,6 +272,19 @@ class Piece(Board):
         else:
             Board.black_pieces.remove(attacked_piece)
         print(f"{self} attacked {attacked_piece}")
+
+    def add_if_saves_king(self, des_col, des_row, p_attacking_king, your_king, attack, game_board) -> bool:
+        game_board.board[des_col][des_row] = self
+        p_attacking_king.validate_moves(game_board)
+
+        if (your_king.board_pos[0], your_king.board_pos[1], True) not in p_attacking_king.valid_moves:
+            self.valid_moves.append((des_col, des_row, attack))
+            game_board.board[des_col][des_row] = None
+            p_attacking_king.validate_moves(game_board)
+            return True
+        game_board.board[des_col][des_row] = None
+        p_attacking_king.validate_moves(game_board)
+        return False
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.color}, {self.board_pos})"
@@ -292,16 +302,26 @@ class Pawn(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1        
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+           
 
         
         if board[now_col+(1*color_col_mult)][now_row] == None and 0 <= now_col+(1*color_col_mult) < 8: # one forward
-            self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
+            if your_king.endangered == False:
+                self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
+            else:
+                self.add_if_saves_king(now_col+(1*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
 
         if board[now_col+(2*color_col_mult)][now_row] == None and 0 <= now_col+(2*color_col_mult) < 8: # first move two forward 
             if self.moved == False:
-                self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+                if your_king.endangered == False:
+                    self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+                else:
+                    self.add_if_saves_king(now_col+(2*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
 
         for direction in [1,-1]: # en passant move, left and right
             if 0 <= now_col+(1*color_col_mult) < 8 and 0 <= now_row+(direction) < 8 : 
@@ -314,7 +334,6 @@ class Pawn(Piece):
             des_col = now_col+(move_col_mod*color_col_mult)
             des_row = now_row+move_row_mod
             if 0 <= des_col < 8 and 0 <= des_row < 8: 
-
                 if self.color == "white":
                     Board.danger_zone_black[des_col][des_row] = True
                 else:
@@ -322,13 +341,25 @@ class Pawn(Piece):
 
                 des_piece = board[des_col][des_row]
                 if des_piece != None:
-                    attack = True
                     if des_piece.color == self.color:
                         continue
+                    else:
+                        attack = True
+                        if isinstance(des_piece, King):
+                            des_piece.endangered = True
+                            des_piece.enemy_piece_attacking = self
+                        if your_king.endangered == True:
+                            if des_col == p_attacking_king.board_pos[0] and des_row == p_attacking_king.board_pos[1]:
+                                self.valid_moves.append((des_col, des_row, attack))
+                                continue
                 else:
                     attack = False
+
                 if attack == True:
-                    self.valid_moves.append((des_col, des_row, attack))
+                    if your_king.endangered == False:
+                        self.valid_moves.append((des_col, des_row, attack))
+                    else:
+                        self.add_if_saves_king(des_col, des_row, p_attacking_king, your_king, attack, game_board)
 
     #def move(self) -> bool:
     #    return True
@@ -345,8 +376,12 @@ class Knight(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1    
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+
 
         for move_row_mod, move_col_mod in self.moves: 
             des_col = now_col+(move_col_mod*color_col_mult)
@@ -360,13 +395,24 @@ class Knight(Piece):
 
                 des_piece = board[des_col][des_row]
                 if des_piece != None:
-                    attack = True
                     if des_piece.color == self.color:
                         continue
+                    else:
+                        attack = True
+                        if isinstance(des_piece, King):
+                            des_piece.endangered = True
+                            des_piece.enemy_piece_attacking = self
+                        if your_king.endangered == True:
+                            if des_col == p_attacking_king.board_pos[0] and des_row == p_attacking_king.board_pos[1]:
+                                self.valid_moves.append((des_col, des_row, attack))
+                                continue
                 else:
                     attack = False
-
-                self.valid_moves.append((des_col, des_row, attack))
+                
+                if your_king.endangered == False:
+                    self.valid_moves.append((des_col, des_row, attack))
+                else:
+                    self.add_if_saves_king(des_col, des_row, p_attacking_king, your_king, attack, game_board)
 
 
 class Bishop(Piece):
@@ -383,8 +429,12 @@ class Bishop(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1    
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+
 
         for set_of_moves in self.moves:
             for move_row_mod, move_col_mod in set_of_moves: 
@@ -399,15 +449,26 @@ class Bishop(Piece):
 
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
-                        attack = True
                         if des_piece.color == self.color:
                             break
-                        self.valid_moves.append((des_col, des_row, attack))
+                        else:
+                            attack = True
+                            if isinstance(des_piece, King):
+                                des_piece.endangered = True
+                                des_piece.enemy_piece_attacking = self
+                            if your_king.endangered == True:
+                                if des_col == p_attacking_king.board_pos[0] and des_row == p_attacking_king.board_pos[1]:
+                                    self.valid_moves.append((des_col, des_row, attack))
+                            else:
+                                self.valid_moves.append((des_col, des_row, attack))
                         break
                     else:
                         attack = False
-
-                    self.valid_moves.append((des_col, des_row, attack))
+                    
+                    if your_king.endangered == False:
+                        self.valid_moves.append((des_col, des_row, attack))
+                    else:
+                        self.add_if_saves_king(des_col, des_row, p_attacking_king, your_king, attack, game_board)
                 else:
                     break
 
@@ -427,8 +488,12 @@ class Rook(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1    
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+
 
         for set_of_moves in self.moves:
             for move_row_mod, move_col_mod in set_of_moves: 
@@ -443,15 +508,26 @@ class Rook(Piece):
 
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
-                        attack = True
                         if des_piece.color == self.color:
                             break
-                        self.valid_moves.append((des_col, des_row, attack))
+                        else:
+                            attack = True
+                            if isinstance(des_piece, King):
+                                des_piece.endangered = True
+                                des_piece.enemy_piece_attacking = self
+                            if your_king.endangered == True:
+                                if des_col == p_attacking_king.board_pos[0] and des_row == p_attacking_king.board_pos[1]:
+                                    self.valid_moves.append((des_col, des_row, attack))
+                            else:
+                                self.valid_moves.append((des_col, des_row, attack))
                         break
                     else:
                         attack = False
-
-                    self.valid_moves.append((des_col, des_row, attack))
+                    
+                    if your_king.endangered == False:
+                        self.valid_moves.append((des_col, des_row, attack))
+                    else:
+                        self.add_if_saves_king(des_col, des_row, p_attacking_king, your_king, attack, game_board)
                 else:
                     break
 
@@ -461,8 +537,13 @@ class King(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "King"
         self.endangered = False
+        self.enemy_piece_attacking = None
         self.moves = [(0,1), (0,-1), (1,0), (-1,0), (1,1), (1,-1), (-1,-1), (-1,1)]  
         self.moved = False
+        if self.color == "white":
+            Board.white_king = self
+        else:    
+            Board.black_king = self
 
     def isEndangered(self) -> bool:
         return self.endangered
@@ -473,8 +554,12 @@ class King(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1    
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+
 
         if self.color == "white":
             danger_zone = Board.danger_zone_white
@@ -508,8 +593,8 @@ class King(Piece):
                         continue
                 else:
                     attack = False
-                print((des_col, des_row))
-                print(danger_zone[des_col][des_row])
+                #print((des_col, des_row))
+                #print(danger_zone[des_col][des_row])
                 if danger_zone[des_col][des_row] == False:
                     self.valid_moves.append((des_col, des_row, attack))
 
@@ -532,8 +617,12 @@ class Queen(Piece):
         now_col, now_row = self.board_pos
         color_col_mult = 1
         self.valid_moves = []
+        your_king = Board.black_king
         if self.color == "white":
-            color_col_mult = -1    
+            color_col_mult = -1     
+            your_king = Board.white_king
+        p_attacking_king = your_king.enemy_piece_attacking
+
 
         for set_of_moves in self.moves:
             for move_row_mod, move_col_mod in set_of_moves: 
@@ -548,15 +637,26 @@ class Queen(Piece):
 
                     des_piece = board[des_col][des_row]
                     if des_piece != None:
-                        attack = True
                         if des_piece.color == self.color:
                             break
-                        self.valid_moves.append((des_col, des_row, attack))
+                        else:
+                            attack = True
+                            if isinstance(des_piece, King):
+                                des_piece.endangered = True
+                                des_piece.enemy_piece_attacking = self
+                            if your_king.endangered == True:
+                                if des_col == p_attacking_king.board_pos[0] and des_row == p_attacking_king.board_pos[1]:
+                                    self.valid_moves.append((des_col, des_row, attack))
+                            else:
+                                self.valid_moves.append((des_col, des_row, attack))
                         break
                     else:
                         attack = False
-
-                    self.valid_moves.append((des_col, des_row, attack))
+                    
+                    if your_king.endangered == False:
+                        self.valid_moves.append((des_col, des_row, attack))
+                    else:
+                        self.add_if_saves_king(des_col, des_row, p_attacking_king, your_king, attack, game_board)
                 else:
                     break
 

@@ -147,6 +147,7 @@ def main():
     Board.size_of_identifiers = HEIGHT*0.81
 
     board = Board()
+    Board.validate_all_pieces(board)
     load_images()
 
     #print(f"\nWhite pieces: {Board.white_pieces}\n")
@@ -199,10 +200,8 @@ if __name__ == "__main__":
 
 ##TODO##
 # Implement:
-# - change castling to only be possible when area not endangered
-# - king not being able to move to dangerous positions
 # - change piece type when pawn moves to end of board
-# - check - king must move to save when endangered
+# - piece cant make move that will endanger king
 # - chessmate - ending of game
 # - draw - ending of game
 # - surrender - ending of game
