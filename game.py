@@ -8,6 +8,8 @@ FPS = 60
 BLACK = (0,0,0)
 BACKGROUND_COLOR = (49,46,43)
 
+SHOW_POSSIBLE_MOVES = True
+
 # create window
 WIDTH, HEIGHT = 800, 600
 pygame.display.set_caption("Chess")
@@ -16,9 +18,9 @@ pygame.display.set_caption("Chess")
 icon = pygame.image.load(os.path.join("images/PNG/", "icon.png"))
 pygame.display.set_icon(icon)
 
-fullscreen = False
+FULLSCREEN = False
 flags = pygame.RESIZABLE
-if fullscreen:
+if FULLSCREEN:
     flags = pygame.FULLSCREEN
 WINDOW = pygame.display.set_mode((WIDTH, HEIGHT),flags)
 
@@ -39,7 +41,14 @@ def draw() -> None:
 
     if Board.selected_piece != None:
         selected_square_board_coords = board_pos_to_coords(Board.selected_piece.board_pos)
-        WINDOW.blit(Board.selected_square_image, selected_square_board_coords)     
+        WINDOW.blit(Board.selected_square_image, selected_square_board_coords)  
+
+        for valid_move in Board.selected_piece.valid_moves:
+            valid_move_coords = board_pos_to_coords((valid_move[0],valid_move[1]))
+            if valid_move[2] == True:
+                WINDOW.blit(Board.valid_move_attack_image, valid_move_coords)
+            else:
+                WINDOW.blit(Board.valid_move_image, valid_move_coords)
 
     if Board.holding_piece != None:
         mouse_on_square_board_pos, mouse_on_square_board_coords = Board.mouse_on_square
@@ -60,6 +69,8 @@ def load_images() -> None:
 
     Board.selected_square_image_original_size = pygame.image.load(os.path.join("images/PNG/", "selected_square.png")) 
     Board.holding_over_square_image_original_size = pygame.image.load(os.path.join("images/PNG/", "holding_over_square.png"))
+    Board.valid_move_image_original_size = pygame.image.load(os.path.join("images/PNG/", "valid_move.png"))
+    Board.valid_move_attack_image_original_size = pygame.image.load(os.path.join("images/PNG/", "valid_move_attack.png")) 
 
     for p in Board.all_pieces:
         #print(f"Loading: {p.color}_{p.type.lower()}.png")
@@ -74,6 +85,10 @@ def transform_images() -> None:
     
     Board.selected_square_image = pygame.transform.smoothscale(Board.selected_square_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
     Board.holding_over_square_image = pygame.transform.smoothscale(Board.holding_over_square_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
+
+    Board.valid_move_image = pygame.transform.smoothscale(Board.valid_move_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
+    Board.valid_move_attack_image = pygame.transform.smoothscale(Board.valid_move_attack_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
+
 
     for p in Board.all_pieces:
         p.image = pygame.transform.smoothscale(p.image_original_size, (p.size, p.size))
@@ -207,6 +222,7 @@ if __name__ == "__main__":
 # - surrender - ending of game
 # - reseting of game
 # - chosing name and color
+# - improve quality of code
 
 # player vs player
 # - on one device

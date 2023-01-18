@@ -45,6 +45,10 @@ class Board():
     selected_square_image_original_size = None  # image loaded later
     holding_over_square_image = None  # image loaded later
     holding_over_square_image_original_size = None  # image loaded later
+    valid_move_image = None  # image loaded later
+    valid_move_image_original_size = None  # image loaded later
+    valid_move_attack_image = None  # image loaded later
+    valid_move_attack_image_original_size = None  # image loaded later
     mouse_on_square = [(),()] # [board_pos, board_pos_coords]
 
     last_turn = [(),()] # [start_board_pos, end_board_pos]
