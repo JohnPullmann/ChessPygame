@@ -8,7 +8,7 @@ FPS = 60
 BLACK = (0,0,0)
 BACKGROUND_COLOR = (49,46,43)
 
-SHOW_POSSIBLE_MOVES = True
+SHOW_POSSIBLE_MOVES = False
 
 # create window
 WIDTH, HEIGHT = 800, 600
@@ -60,6 +60,12 @@ def draw() -> None:
     if Board.holding_piece != None:
         WINDOW.blit(Board.holding_piece.image, Board.holding_piece.coords)
     
+    if Board.choosing_piece != None:
+        if Board.choosing_piece.color == "white":
+            WINDOW.blit(Board.choose_piece_white_image, Board.choosing_piece.coords)
+        else:
+            WINDOW.blit(Board.choose_piece_black_image, (Board.choosing_piece.coords[0], Board.choosing_piece.coords[1]-(Board.size_of_board/8*3)))
+
     pygame.display.update()
 
 
@@ -71,10 +77,9 @@ def load_images() -> None:
     Board.holding_over_square_image_original_size = pygame.image.load(os.path.join("images/PNG/", "holding_over_square.png"))
     Board.valid_move_image_original_size = pygame.image.load(os.path.join("images/PNG/", "valid_move.png"))
     Board.valid_move_attack_image_original_size = pygame.image.load(os.path.join("images/PNG/", "valid_move_attack.png")) 
-
-    for p in Board.all_pieces:
-        #print(f"Loading: {p.color}_{p.type.lower()}.png")
-        p.image_original_size = pygame.image.load(os.path.join("images/PNG/", f"{p.color}_{p.type.lower()}.png")) 
+    Board.choose_piece_white_image_original_size = pygame.image.load(os.path.join("images/PNG/", "choose_piece_white.png")) 
+    Board.choose_piece_black_image_original_size = pygame.image.load(os.path.join("images/PNG/", "choose_piece_black.png")) 
+    
 
     transform_images() 
 
@@ -89,9 +94,10 @@ def transform_images() -> None:
     Board.valid_move_image = pygame.transform.smoothscale(Board.valid_move_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
     Board.valid_move_attack_image = pygame.transform.smoothscale(Board.valid_move_attack_image_original_size, (Board.size_of_board/8, Board.size_of_board/8))
 
+    Board.choose_piece_white_image = pygame.transform.smoothscale(Board.choose_piece_white_image_original_size, (Board.size_of_board/8, Board.size_of_board/8*5))
+    Board.choose_piece_black_image = pygame.transform.smoothscale(Board.choose_piece_black_image_original_size, (Board.size_of_board/8, Board.size_of_board/8*5
+    ))
 
-    for p in Board.all_pieces:
-        p.image = pygame.transform.smoothscale(p.image_original_size, (p.size, p.size))
 
 
 def resize_window(board) -> None:
@@ -135,6 +141,27 @@ def selected_piece_drop(mouse_x: float, mouse_y: float, board: Board) -> None:
             print(f"Piece drop to its old position\n")
             Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
             Board.holding_piece = None
+
+def choose_piece(mouse_x: float, mouse_y: float, board: Board) -> None:
+
+    if Board.choosing_piece.color == "white":
+        x, y = (mouse_x-Board.choosing_piece.coords[0], mouse_y-(Board.choosing_piece.coords[1]))
+    else:
+        x, y = (mouse_x-Board.choosing_piece.coords[0], mouse_y-(Board.choosing_piece.coords[1]-(Board.size_of_board/8*3)))
+        
+    if (0 < x < Board.size_of_board/8) and (0 < y < Board.size_of_board/8*4):
+        piece = y // (Board.size_of_board/8)
+        if piece == 0:
+            Board.choosing_piece.promote("Queen", board)
+        elif piece == 1:
+            Board.choosing_piece.promote("Rook", board)
+        elif piece == 2:
+            Board.choosing_piece.promote("Knight", board)
+        elif piece == 3:
+            Board.choosing_piece.promote("Bishop", board)
+
+        Board.choosing_piece = None
+
 
 def mouse_on_square_select(mouse_x: float, mouse_y: float) -> None:
     new_board_pos = coords_to_board_pos((mouse_x, mouse_y))
@@ -187,22 +214,28 @@ def main():
                 #print("\nMouse down")
                 mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                board.select_piece(mouse_x, mouse_y)
-                #select_piece(mouse_x, mouse_y, board) 
+                if board.choosing_piece == None:
+                    board.select_piece(mouse_x, mouse_y)
+                    #select_piece(mouse_x, mouse_y, board) 
 
 
             if event.type == pygame.MOUSEBUTTONUP:
                 #print("\nMouse up")
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-            
-                selected_piece_drop(mouse_x, mouse_y, board)
+
+                if board.choosing_piece == None:
+                    selected_piece_drop(mouse_x, mouse_y, board)
+                else:
+                    choose_piece(mouse_x, mouse_y, board)
+
                 
             
             if event.type == pygame.MOUSEMOTION:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                mouse_on_square_select(mouse_x, mouse_y)
-                holding_piece_move(mouse_x, mouse_y)
+                if board.choosing_piece == None:
+                    mouse_on_square_select(mouse_x, mouse_y)
+                    holding_piece_move(mouse_x, mouse_y)
 
         draw()
     
@@ -215,14 +248,23 @@ if __name__ == "__main__":
 
 ##TODO##
 # Implement:
-# - change piece type when pawn moves to end of board
+# - change piece type when pawn moves to end of board #219
 # - piece cant make move that will endanger king
 # - chessmate - ending of game
 # - draw - ending of game
 # - surrender - ending of game
 # - reseting of game
 # - chosing name and color
-# - improve quality of code
+# - improve quality of code 
+# - showing who is on turn
+# - arrows for planning turns
+
+# - error pawn trying to attack diagonaly out of board - list index out of range error 
+# - Fix not valid move when clicking on empty tiles
+# - Remove canceling choosing pawn promotion
+# - Delete class objects after removing them
+# - sometimes pawns cant be touched
+# - error maximum recursion p_attacking king validate moves -> add if saves king -> p_attacking king validate moves 
 
 # player vs player
 # - on one device

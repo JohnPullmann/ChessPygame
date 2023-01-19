@@ -1,5 +1,6 @@
 import pygame
 from pprint import pprint
+import os
 
 
 def board_pos_to_coords(board_pos) -> tuple:
@@ -49,11 +50,17 @@ class Board():
     valid_move_image_original_size = None  # image loaded later
     valid_move_attack_image = None  # image loaded later
     valid_move_attack_image_original_size = None  # image loaded later
+    choose_piece_white_image_original_size = None  # image loaded later
+    choose_piece_black_image_original_size = None  # image loaded later
+    choose_piece_white_image = None  # image loaded later
+    choose_piece_black_image = None  # image loaded later
     mouse_on_square = [(),()] # [board_pos, board_pos_coords]
 
     last_turn = [(),()] # [start_board_pos, end_board_pos]
     danger_zone_black = [[False for _ in range(8)] for _ in range(8)]
     danger_zone_white = [[False for _ in range(8)] for _ in range(8)]
+
+    choosing_piece = None
 
     def __init__(self):
 
@@ -125,17 +132,17 @@ class Board():
     def select_piece(self, mouse_x: float, mouse_y: float) -> None:
         mouse_board_pos = coords_to_board_pos((mouse_x, mouse_y))
         if mouse_board_pos != -1:
-            selected_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
-            if selected_piece != None:
+            if self.board[mouse_board_pos[0]][mouse_board_pos[1]] != None:
                 #print(selected_piece, self.player_on_turn)
-                if selected_piece.color == self.player_on_turn.color:
-                    selected_piece.selected = True
-                    Board.holding_piece = selected_piece
-                    Board.selected_piece = selected_piece
+                if self.board[mouse_board_pos[0]][mouse_board_pos[1]].color == self.player_on_turn.color:
+                    self.board[mouse_board_pos[0]][mouse_board_pos[1]].selected = True
+                    Board.holding_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
+                    Board.selected_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
 
                     #print(f"Valid moves {selected_piece.type}: {selected_piece.valid_moves}")
                 else:
-                    Board.selected_piece = None
+                    #print("ccccc",selected_piece.color == self.player_on_turn.color, selected_piece.color, self.player_on_turn.color, selected_piece)
+                    #Board.selected_piece = None
                     Board.holding_piece = None
         else:
             Board.selected_piece = None
@@ -166,12 +173,12 @@ class Piece():
         self.board_pos = board_pos # (column, row)
         self.coords = board_pos_to_coords(self.board_pos) # (x, y)
         self.size = Board.size_of_board/8
-        self.image = None # image loaded later
-        self.image_original_size = None # image loaded later
         self.selected = selected
         self.rec = pygame.Rect(*self.coords, self.size, self.size)
         self.type = None
         self.valid_moves = [] # updates when spiece selected, [(col, row, attact)]
+        self.image = None # image loaded later
+        self.image_original_size = None # image loaded later
 
         if self.color == "white":
             Board.white_pieces.append(self)
@@ -179,6 +186,9 @@ class Piece():
             Board.black_pieces.append(self)
         Board.all_pieces.append(self)
 
+    def load_image(self):
+        self.image_original_size = pygame.image.load(os.path.join("images/PNG/", f"{self.color}_{self.type.lower()}.png")) 
+        self.image = pygame.transform.smoothscale(self.image_original_size, (self.size, self.size))
 
     def isSelected(self) -> bool:
         return self.selected
@@ -206,11 +216,16 @@ class Piece():
                 attacking = True
                 
 
-        # ---------------------- Special attacks
+        # ---------------------- Special moves
         if self.type == "Pawn" and attacking == False: # en passant move, left and right
             if dest_board_pos[1] != self.board_pos[1]: #  - test if not normal forward move
                 self.attack((dest_board_pos[0]-color_col_mult, dest_board_pos[1]), game_board) 
                 attacking = False
+            
+        other_side = 0 if self.color == "white" else 7
+        if self.type == "Pawn" and dest_board_pos[0] == other_side:
+            #change pawn to piece of choice
+            Board.choosing_piece = self
 
         elif self.type == "King":
             self.endangered = False
@@ -299,6 +314,27 @@ class Pawn(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Pawn"
         self.moved = False
+        self.load_image()
+
+    def promote(self, piece, game_board):
+        if piece == "Queen":
+            game_board.board[self.board_pos[0]][self.board_pos[1]] = Queen(self.color, self.board_pos)
+            print(f"\n{Board.player_on_turn.name} chose Queen\n")
+        if piece == "Rook":
+            game_board.board[self.board_pos[0]][self.board_pos[1]] = Rook(self.color, self.board_pos)
+            print(f"\n{Board.player_on_turn.name} chose Rook\n")
+        if piece == "Knight":
+            game_board.board[self.board_pos[0]][self.board_pos[1]] = Knight(self.color, self.board_pos)
+            print(f"\n{Board.player_on_turn.name} chose Knight\n")
+        if piece == "Bishop":
+            game_board.board[self.board_pos[0]][self.board_pos[1]] = Bishop(self.color, self.board_pos)
+            print(f"\n{Board.player_on_turn.name} chose Bishop\n")
+
+        game_board.all_pieces.remove(self)
+        if self.color == "white":
+            game_board.white_pieces.remove(self)
+        else:
+            game_board.black_pieces.remove(self)
 
     def validate_moves(self, game_board) -> None:
         # add special move !
@@ -313,19 +349,21 @@ class Pawn(Piece):
         p_attacking_king = your_king.enemy_piece_attacking
            
 
-        
-        if board[now_col+(1*color_col_mult)][now_row] == None and 0 <= now_col+(1*color_col_mult) < 8: # one forward
-            if your_king.endangered == False:
-                self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
-            else:
-                self.add_if_saves_king(now_col+(1*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
 
-        if board[now_col+(2*color_col_mult)][now_row] == None and 0 <= now_col+(2*color_col_mult) < 8: # first move two forward 
-            if self.moved == False:
+        if  0 <= now_col+(1*color_col_mult) < 8: # one forward
+            if board[now_col+(1*color_col_mult)][now_row] == None:   
                 if your_king.endangered == False:
-                    self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+                    self.valid_moves.append((now_col+(1*color_col_mult), now_row, False))
                 else:
-                    self.add_if_saves_king(now_col+(2*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
+                    self.add_if_saves_king(now_col+(1*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
+
+        if 0 <= now_col+(2*color_col_mult) < 8: # first move two forward
+            if board[now_col+(2*color_col_mult)][now_row] == None and board[now_col+(1*color_col_mult)][now_row] == None: 
+                if self.moved == False:
+                    if your_king.endangered == False:
+                        self.valid_moves.append((now_col+(2*color_col_mult), now_row, False))
+                    else:
+                        self.add_if_saves_king(now_col+(2*color_col_mult), now_row, p_attacking_king, your_king, False, game_board)
 
         for direction in [1,-1]: # en passant move, left and right
             if 0 <= now_col+(1*color_col_mult) < 8 and 0 <= now_row+(direction) < 8 : 
@@ -374,6 +412,7 @@ class Knight(Piece):
         super().__init__(color, board_pos, selected)
         self.type = "Knight"
         self.moves = [(1,2), (2,1), (2,-1), (1,-2), (-1,-2), (-2,-1), (-2,1), (-1,2)]
+        self.load_image()
 
     def validate_moves(self, game_board) -> None:
         board = game_board.board
@@ -427,6 +466,7 @@ class Bishop(Piece):
                       [(-1,1), (-2,2), (-3,3), (-4,4), (-5,5), (-6,6), (-7,7)],
                       [(1,-1), (2,-2), (3,-3), (4,-4), (5,-5), (6,-6), (7,-7)],
                       [(-1,-1), (-2,-2), (-3,-3), (-4,-4), (-5,-5), (-6,-6), (-7,-7)]]
+        self.load_image()
 
     def validate_moves(self, game_board) -> None:
         board = game_board.board
@@ -486,6 +526,7 @@ class Rook(Piece):
                       [(1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0)],
                       [(-1,0), (-2,0), (-3,0), (-4,0), (-5,0), (-6,0), (-7,0)]]
         self.moved = False
+        self.load_image()
 
     def validate_moves(self, game_board) -> None:
         board = game_board.board
@@ -548,6 +589,7 @@ class King(Piece):
             Board.white_king = self
         else:    
             Board.black_king = self
+        self.load_image()
 
     def isEndangered(self) -> bool:
         return self.endangered
@@ -615,6 +657,7 @@ class Queen(Piece):
                       [(0,-1), (0,-2), (0,-3), (0,-4), (0,-5), (0,-6), (0,-7)],
                       [(1,0), (2,0), (3,0), (4,0), (5,0), (6,0), (7,0)],
                       [(-1,0), (-2,0), (-3,0), (-4,0), (-5,0), (-6,0), (-7,0)]]
+        self.load_image()
 
     def validate_moves(self, game_board) -> None:
         board = game_board.board
