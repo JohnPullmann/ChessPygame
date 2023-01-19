@@ -132,17 +132,19 @@ class Board():
     def select_piece(self, mouse_x: float, mouse_y: float) -> None:
         mouse_board_pos = coords_to_board_pos((mouse_x, mouse_y))
         if mouse_board_pos != -1:
-            if self.board[mouse_board_pos[0]][mouse_board_pos[1]] != None:
+            mouse_on_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
+            if mouse_on_piece != None:
                 #print(selected_piece, self.player_on_turn)
-                if self.board[mouse_board_pos[0]][mouse_board_pos[1]].color == self.player_on_turn.color:
-                    self.board[mouse_board_pos[0]][mouse_board_pos[1]].selected = True
-                    Board.holding_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
-                    Board.selected_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
+                if mouse_on_piece.color == self.player_on_turn.color:
+                    mouse_on_piece.selected = True
+                    Board.holding_piece = mouse_on_piece
+                    Board.selected_piece = mouse_on_piece
 
                     #print(f"Valid moves {selected_piece.type}: {selected_piece.valid_moves}")
                 else:
                     #print("ccccc",selected_piece.color == self.player_on_turn.color, selected_piece.color, self.player_on_turn.color, selected_piece)
                     #Board.selected_piece = None
+                    print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {mouse_on_piece.color}\n")
                     Board.holding_piece = None
         else:
             Board.selected_piece = None
@@ -188,6 +190,9 @@ class Piece():
 
     def load_image(self):
         self.image_original_size = pygame.image.load(os.path.join("images/PNG/", f"{self.color}_{self.type.lower()}.png")) 
+        self.transform_image()
+
+    def transform_image(self):    
         self.image = pygame.transform.smoothscale(self.image_original_size, (self.size, self.size))
 
     def isSelected(self) -> bool:
@@ -203,14 +208,16 @@ class Piece():
         if self.color == "white":
             color_col_mult = -1
 
-        if Board.player_on_turn.color != self.color:
-            print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {self.color}")
-            return False
+        #if Board.player_on_turn.color != self.color:
+        #    print(f"You tried to move piece of different color, \nYour color: {Board.player_on_turn.color}, Piece color: {self.color}")
+        #    return False
 
         attacking = False
         if (dest_board_pos[0], dest_board_pos[1], False) not in self.valid_moves:
             if (dest_board_pos[0], dest_board_pos[1], True) not in self.valid_moves:
-                print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}")
+                if self.board_pos != dest_board_pos:
+                    print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}\n")
+                    #print(f"Piece droped to it's old position\n")
                 return False
             else:
                 attacking = True
@@ -329,12 +336,17 @@ class Pawn(Piece):
         if piece == "Bishop":
             game_board.board[self.board_pos[0]][self.board_pos[1]] = Bishop(self.color, self.board_pos)
             print(f"\n{Board.player_on_turn.name} chose Bishop\n")
-
+            
         game_board.all_pieces.remove(self)
         if self.color == "white":
             game_board.white_pieces.remove(self)
         else:
             game_board.black_pieces.remove(self)
+
+        Board.holding_piece = None
+        Board.selected_piece = None
+        Board.validate_all_pieces(game_board)
+
 
     def validate_moves(self, game_board) -> None:
         # add special move !
@@ -348,8 +360,6 @@ class Pawn(Piece):
             your_king = Board.white_king
         p_attacking_king = your_king.enemy_piece_attacking
            
-
-
         if  0 <= now_col+(1*color_col_mult) < 8: # one forward
             if board[now_col+(1*color_col_mult)][now_row] == None:   
                 if your_king.endangered == False:

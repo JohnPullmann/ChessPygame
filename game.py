@@ -79,7 +79,6 @@ def load_images() -> None:
     Board.valid_move_attack_image_original_size = pygame.image.load(os.path.join("images/PNG/", "valid_move_attack.png")) 
     Board.choose_piece_white_image_original_size = pygame.image.load(os.path.join("images/PNG/", "choose_piece_white.png")) 
     Board.choose_piece_black_image_original_size = pygame.image.load(os.path.join("images/PNG/", "choose_piece_black.png")) 
-    
 
     transform_images() 
 
@@ -97,6 +96,9 @@ def transform_images() -> None:
     Board.choose_piece_white_image = pygame.transform.smoothscale(Board.choose_piece_white_image_original_size, (Board.size_of_board/8, Board.size_of_board/8*5))
     Board.choose_piece_black_image = pygame.transform.smoothscale(Board.choose_piece_black_image_original_size, (Board.size_of_board/8, Board.size_of_board/8*5
     ))
+
+    for piece in Board.all_pieces:
+        piece.transform_image()
 
 
 
@@ -131,14 +133,11 @@ def selected_piece_drop(mouse_x: float, mouse_y: float, board: Board) -> None:
             new_piece_pos = board_pos_to_coords(new_board_pos)
             
             if Board.selected_piece.move(new_board_pos, board):
-                #print(f"Piece drop position: {sel_piece_board_pos}")
                 pass
             else:
-                print(f"Piece drop to its old position\n")
                 Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
                 Board.holding_piece = None
         else:
-            print(f"Piece drop to its old position\n")
             Board.selected_piece.coords = board_pos_to_coords(Board.selected_piece.board_pos)
             Board.holding_piece = None
 
@@ -259,9 +258,6 @@ if __name__ == "__main__":
 # - showing who is on turn
 # - arrows for planning turns
 
-# - error pawn trying to attack diagonaly out of board - list index out of range error 
-# - Fix not valid move when clicking on empty tiles
-# - Remove canceling choosing pawn promotion
 # - Delete class objects after removing them
 # - sometimes pawns cant be touched
 # - error maximum recursion p_attacking king validate moves -> add if saves king -> p_attacking king validate moves 
@@ -273,6 +269,8 @@ if __name__ == "__main__":
 # -- surrender when someone quits
 
 #/ player vs computer
+
+# sandbox mode
 
 # Menu
 # - local play PvP
