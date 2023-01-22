@@ -203,44 +203,37 @@ def main():
     #Main game loop
     while running:
         clock.tick(FPS)
+
         for event in pygame.event.get():
-            #print(event)
-            #print(event.type)
             if event.type == pygame.QUIT:
                 running = False
 
             elif event.type == pygame.WINDOWRESIZED:
-                #print("RESIZED")
-
                 resize_window()
 
+            if not board.ended:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                #print("\nMouse down")
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-
-                if board.choosing_piece == None:
-                    board.select_piece(mouse_x, mouse_y)
-                    #select_piece(mouse_x, mouse_y, board) 
+                    if board.choosing_piece == None:
+                        board.select_piece(mouse_x, mouse_y)
 
 
-            if event.type == pygame.MOUSEBUTTONUP:
-                #print("\nMouse up")
-                mouse_x, mouse_y = pygame.mouse.get_pos()
+                if event.type == pygame.MOUSEBUTTONUP:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                if board.choosing_piece == None:
-                    selected_piece_drop(mouse_x, mouse_y)
-                else:
-                    choose_piece(mouse_x, mouse_y)
+                    if board.choosing_piece == None:
+                        selected_piece_drop(mouse_x, mouse_y)
+                    else:
+                        choose_piece(mouse_x, mouse_y)
 
-                
-            
-            if event.type == pygame.MOUSEMOTION:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                if board.choosing_piece == None:
-                    mouse_on_square_select(mouse_x, mouse_y)
-                    holding_piece_move(mouse_x, mouse_y)
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+
+                    if board.choosing_piece == None:
+                        mouse_on_square_select(mouse_x, mouse_y)
+                        holding_piece_move(mouse_x, mouse_y)
 
         draw()
     
@@ -261,9 +254,16 @@ if __name__ == "__main__":
 # - improve quality of code 
 # - showing who is on turn
 # - arrows for planning turns
+# - Castling only if none of squares between king and rook are endangered
+# - show destroyed pieces
+# - show relative value of pieces
+# - add draw Dead Position
+# - add draw and resign by agreement
+# - add draw Threefold Repetition
+# - add 50-Move Rule
 
+# - cant defend check by pieces error
 # - Delete class objects after removing them
-# - sometimes pawns cant be touched
 # - error maximum recursion p_attacking king validate moves -> add if saves king -> p_attacking king validate moves 
 
 # player vs player

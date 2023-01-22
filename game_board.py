@@ -21,6 +21,8 @@ def coords_to_board_pos(gameBoard, coords) -> tuple:
 class Board():
     def __init__(self, WIDTH: int = 800, HEIGHT: int = 800):
 
+        self.ended = False
+        self.ending = () # example ("Win" player1)
         self.white_pieces = []
         self.black_pieces = []
         self.all_pieces =[]
@@ -169,11 +171,41 @@ class Board():
         for piece in self.all_pieces:
             piece.validate_moves(potent_pos_validation)
 
+    
+    def check_for_win(self) -> bool:
+        if self.white_king.endangered == True and all(p.valid_moves == [] for p in self.white_pieces): # Black Win - checkmate
+            print(f"\n{self.player2.color} [{self.player2.name}] won! ")
+            self.ending = ("Win", self.player2)
+            return True
+        elif self.black_king.endangered == True and all(p.valid_moves == [] for p in self.black_pieces): # White Win - checkmate
+            print(f"\n{self.player1.color} [{self.player1.name}] won! ")
+            self.ending = ("Win", self.player1)
+            return True
 
-        # print("White danger zone: ")
-        # pprint(Board.danger_zone_white)
-        # print("Black danger zone: ")
-        # pprint(Board.danger_zone_black)
+    def check_for_draw(self) -> bool:
+        if self.white_king.endangered == False and all(p.valid_moves == [] for p in self.white_pieces): # Draw - White can't move
+            print(f"\nDraw - {self.player1.color} [{self.player1.name}] can't move! ")
+            self.ending = ("Draw", "White move")
+            return True
+        elif self.black_king.endangered == False and all(p.valid_moves == [] for p in self.black_pieces): # Draw - Black can't move
+            print(f"\nDraw - {self.player2.color} [{self.player2.name}] can't move! ")
+            self.ending = ("Draw", "Black move")
+            return True
+        elif len(self.all_pieces) == 2: # Draw - Only kings are remaining! 
+            print(f"\nDraw - Only kings are remaining! ")
+            self.ending = ("Draw", "Only kings")
+            return True
+        
+
+    def check_ending(self) -> bool:
+        if self.check_for_win():
+            self.ended = True
+            return True
+        elif self.check_for_draw():
+            self.ended = True
+            return True
+        return False
+
 
 
 class Piece():
@@ -230,7 +262,6 @@ class Piece():
             if (dest_board_pos[0], dest_board_pos[1], True) not in self.valid_moves:
                 if self.board_pos != dest_board_pos:
                     print(f"Not valid move!\nFROM: {self.board_pos}  TO: {dest_board_pos}\nValid moves: {self.valid_moves}\n")
-                    print(self.board.board)
                     #print(f"Piece droped to it's old position\n")
                 return False
             else:
@@ -299,6 +330,7 @@ class Piece():
         self.board.selected_piece = None
 
         self.board.validate_all_pieces()
+        self.board.check_ending()
 
         return True
 
@@ -315,12 +347,11 @@ class Piece():
 
     def will_save_his_king(self, des_col, des_row, p_attacking_king, potent_pos_validation) -> bool:
         if potent_pos_validation == False:
-            king_state_w, king_state_b = self.board.black_king.endangered, self.board.white_king.endangered
+            king_state_b, king_state_w = self.board.black_king.endangered, self.board.white_king.endangered
             original_dest_piece = self.board.board[des_col][des_row]
             self.board.board[des_col][des_row] = self
-            p_attacking_king.validate_moves(potent_pos_validation = True)
+            p_attacking_king.validate_moves()
             self.board.black_king.endangered, self.board.white_king.endangered = king_state_b, king_state_w
-
             self.board.board[des_col][des_row] = original_dest_piece
             if (self.your_king.board_pos[0], self.your_king.board_pos[1], True) not in p_attacking_king.valid_moves:
                 p_attacking_king.validate_moves()
@@ -329,8 +360,9 @@ class Piece():
                 p_attacking_king.validate_moves()
                 return False
 
+
     def will_endanger_his_king(self):
-        king_state_w, king_state_b = self.board.black_king.endangered, self.board.white_king.endangered
+        king_state_b, king_state_w = self.board.black_king.endangered, self.board.white_king.endangered
         self.board.board[self.board_pos[0]][self.board_pos[1]] = None
         for piece in self.board.all_pieces:
             piece.validate_moves(potent_pos_validation = True)
@@ -348,7 +380,7 @@ class Piece():
         if potent_pos_validation == False:
             if isinstance(self, King):
                 self.valid_moves.append((des_col, des_row, attack))
-            elif not self.will_endanger_his_king():
+            elif (self.your_king.endangered == True) or (not self.will_endanger_his_king()):
                 self.valid_moves.append((des_col, des_row, attack))
 
 
