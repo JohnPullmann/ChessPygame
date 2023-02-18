@@ -158,13 +158,13 @@ def main():
         if (0 < x < board.size_of_board/8) and (0 < y < board.size_of_board/8*4):
             piece = y // (board.size_of_board/8)
             if piece == 0:
-                board.choosing_piece.promote("Queen", board)
+                board.choosing_piece.promote("Queen")
             elif piece == 1:
-                board.choosing_piece.promote("Rook", board)
+                board.choosing_piece.promote("Rook")
             elif piece == 2:
-                board.choosing_piece.promote("Knight", board)
+                board.choosing_piece.promote("Knight")
             elif piece == 3:
-                board.choosing_piece.promote("Bishop", board)
+                board.choosing_piece.promote("Bishop")
 
             board.choosing_piece = None
 

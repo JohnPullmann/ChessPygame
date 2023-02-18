@@ -112,6 +112,7 @@ class Board():
         self.board[1][5] = Pawn("black", (1, 5), self)
         self.board[1][6] = Pawn("black", (1, 6), self)
         self.board[1][7] = Pawn("black", (1, 7), self)
+        
 
         #print(f"Board: {self.board}")
 
@@ -198,6 +199,7 @@ class Board():
         
 
     def check_ending(self) -> bool:
+
         if self.check_for_win():
             self.ended = True
             return True
@@ -231,6 +233,7 @@ class Piece():
             self.board.white_pieces.append(self)
         elif self.color == "black":
             self.board.black_pieces.append(self)
+        
         self.board.all_pieces.append(self)
 
     def load_image(self):
@@ -379,7 +382,9 @@ class Piece():
     def valid_moves_append(self, des_col, des_row, attack, potent_pos_validation):
         if potent_pos_validation == False:
             if isinstance(self, King):
-                self.valid_moves.append((des_col, des_row, attack))
+                self.your_king = self
+                if not self.will_endanger_his_king():
+                    self.valid_moves.append((des_col, des_row, attack))
             elif (self.your_king.endangered == True) or (not self.will_endanger_his_king()):
                 self.valid_moves.append((des_col, des_row, attack))
 
@@ -396,17 +401,17 @@ class Pawn(Piece):
         self.load_image()
 
     def promote(self, piece):
-        if piece == "Queen":
-            self.board.board[self.board_pos[0]][self.board_pos[1]] = Queen(self.color, self.board_pos)
+        if piece == "Queen":  
+            self.board.board[self.board_pos[0]][self.board_pos[1]] = Queen(self.color, self.board_pos, self.board)
             print(f"\n{self.board.player_on_turn.name} chose Queen\n")
         if piece == "Rook":
-            self.board.board[self.board_pos[0]][self.board_pos[1]] = Rook(self.color, self.board_pos)
+            self.board.board[self.board_pos[0]][self.board_pos[1]] = Rook(self.color, self.board_pos, self.board)
             print(f"\n{self.board.player_on_turn.name} chose Rook\n")
         if piece == "Knight":
-            self.board.board[self.board_pos[0]][self.board_pos[1]] = Knight(self.color, self.board_pos)
+            self.board.board[self.board_pos[0]][self.board_pos[1]] = Knight(self.color, self.board_pos, self.board)
             print(f"\n{self.board.player_on_turn.name} chose Knight\n")
         if piece == "Bishop":
-            self.board.board[self.board_pos[0]][self.board_pos[1]] = Bishop(self.color, self.board_pos)
+            self.board.board[self.board_pos[0]][self.board_pos[1]] = Bishop(self.color, self.board_pos, self.board)
             print(f"\n{self.board.player_on_turn.name} chose Bishop\n")
             
         self.board.all_pieces.remove(self)
