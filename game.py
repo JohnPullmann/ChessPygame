@@ -1,7 +1,7 @@
 import pygame
 import os
 from game_board import Board, Piece, Pawn, Knight, Bishop, Rook, Queen, King, Player
-from game_board import board_pos_to_coords, coords_to_board_pos
+from game_board import board_pos_to_coords, coords_to_board_pos, inverse_board_pos, draw_item
 
 
 FPS = 60
@@ -12,6 +12,9 @@ SHOW_POSSIBLE_MOVES = False
 BOARD_COLOR = "board2"
 WIDTH, HEIGHT = 800, 600
 FULLSCREEN = False
+game_mode = "PvP 1 Device"
+if game_mode == "PvP 1 Device":
+    switching_board = True
 
 pygame.init()
 
@@ -27,50 +30,59 @@ WINDOW = pygame.display.set_mode((WIDTH, HEIGHT),flags)
 
 
 def main():
-    
 
     def draw() -> None:
+        color_on_turn = board.player_on_turn.color
+
         WINDOW.fill(BACKGROUND_COLOR)
-        WINDOW.blit(board.board_image, board.position_of_board)
-        WINDOW.blit(board.identifiers_image, board.position_of_identifiers)
+        
+        # draw board
+        draw_item(WINDOW, board, color_on_turn, board.board_image, coords = board.position_of_board)
 
-        if board.last_turn[0] != () and board.last_turn[1] != ():
-            start_turn_board_coords = board_pos_to_coords(board, board.last_turn[0])
-            end_turn_board_coords = board_pos_to_coords(board, board.last_turn[1])
+        # draw identifiers
+        draw_item(WINDOW, board, color_on_turn, board.identifiers_image, coords = board.position_of_identifiers)
 
-            WINDOW.blit(board.selected_square_image, start_turn_board_coords)  
-            WINDOW.blit(board.selected_square_image, end_turn_board_coords)         
+        # draw selected squares
+        if board.last_turn[0] != () and board.last_turn[1] != ():  
+            draw_item(WINDOW, board, color_on_turn, board.selected_square_image, board_pos = board.last_turn[0], switching = True)
+            draw_item(WINDOW, board, color_on_turn, board.selected_square_image, board_pos = board.last_turn[1], switching = True)     
 
+        # draw square on selected piece
         if board.selected_piece != None:
-            selected_square_board_coords = board_pos_to_coords(board, board.selected_piece.board_pos)
-            WINDOW.blit(board.selected_square_image, selected_square_board_coords)  
+            draw_item(WINDOW, board, color_on_turn, board.selected_square_image, board_pos = board.selected_piece.board_pos, switching = True) 
 
+            # draw valid moves
             for valid_move in board.selected_piece.valid_moves:
-                valid_move_coords = board_pos_to_coords(board, (valid_move[0],valid_move[1]))
                 if valid_move[2] == True:
-                    WINDOW.blit(board.valid_move_attack_image, valid_move_coords)
+                    draw_item(WINDOW, board, color_on_turn, board.valid_move_attack_image, board_pos = (valid_move[0],valid_move[1]), switching = True)
                 else:
-                    WINDOW.blit(board.valid_move_image, valid_move_coords)
+                    draw_item(WINDOW, board, color_on_turn, board.valid_move_image, board_pos = (valid_move[0],valid_move[1]), switching = True)
 
+        #draw square holding piece is over
         if board.holding_piece != None:
-            mouse_on_square_board_pos, mouse_on_square_board_coords = board.mouse_on_square
-            if mouse_on_square_board_coords != -1:
-                WINDOW.blit(board.holding_over_square_image, mouse_on_square_board_coords)
+            if board.mouse_on_square[1] != -1:
+                draw_item(WINDOW, board, color_on_turn, board.holding_over_square_image, coords = board.mouse_on_square[1])
 
-
+        # draw chess pieces
         for p in board.all_pieces:
             #print(p ,p.image, p.coords)
-            WINDOW.blit(p.image, p.coords)
+            if p != board.holding_piece:
+                draw_item(WINDOW, board, color_on_turn, image = p.image, board_pos = p.board_pos, switching = True)
 
+        # draw piece holding piece
         if board.holding_piece != None:
-            WINDOW.blit(board.holding_piece.image, board.holding_piece.coords)
-        
+            #WINDOW.blit(board.holding_piece.image, board.holding_piece.coords)
+            draw_item(WINDOW, board, color_on_turn, image = board.holding_piece.image, coords = board.holding_piece.coords)
+
+        # draw table to choose from piece after pawn gets to the end
         if board.choosing_piece != None:
             if board.choosing_piece.color == "white":
-                WINDOW.blit(board.choose_piece_white_image, board.choosing_piece.coords)
+                #WINDOW.blit(board.choose_piece_white_image, board.choosing_piece.coords)
+                draw_item(WINDOW, board, color_on_turn, image = board.choose_piece_white_image, board_pos = board.choosing_piece.board_pos, switching = True)
             else:
-                WINDOW.blit(board.choose_piece_black_image, (board.choosing_piece.coords[0], board.choosing_piece.coords[1]-(board.size_of_board/8*3)))
-
+                #WINDOW.blit(board.choose_piece_black_image, (board.choosing_piece.coords[0], board.choosing_piece.coords[1]-(board.size_of_board/8*3)))
+                draw_item(WINDOW, board, color_on_turn, image = board.choose_piece_black_image, board_pos = (board.choosing_piece.board_pos[0], board.choosing_piece.board_pos[1]-3), switching = True)
+    
         pygame.display.update()
 
 
@@ -134,6 +146,10 @@ def main():
     def selected_piece_drop(mouse_x: float, mouse_y: float) -> None:
         if board.selected_piece != None:
             new_board_pos = coords_to_board_pos(board, (mouse_x, mouse_y))
+
+            if switching_board == True:
+                    if board.player_on_turn.color == "black":
+                        new_board_pos = inverse_board_pos(new_board_pos)
             if new_board_pos != -1:
                 new_piece_pos = board_pos_to_coords(board, new_board_pos)
                 
@@ -216,7 +232,8 @@ def main():
                     mouse_x, mouse_y = pygame.mouse.get_pos()
 
                     if board.choosing_piece == None:
-                        board.select_piece(mouse_x, mouse_y)
+                        board.select_piece(mouse_x, mouse_y, switching_board, board.player_on_turn.color)
+                        holding_piece_move(mouse_x, mouse_y)
 
 
                 if event.type == pygame.MOUSEBUTTONUP:
@@ -261,6 +278,13 @@ if __name__ == "__main__":
 # - add draw and resign by agreement
 # - add draw Threefold Repetition
 # - add 50-Move Rule
+
+#Switch sides when black is on move
+    #switch drawing board pieces 
+    #switch input
+    #switch board id 
+
+
 
 # - cant defend check by pieces error
 # - Delete class objects after removing them

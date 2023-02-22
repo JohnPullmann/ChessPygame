@@ -16,7 +16,27 @@ def coords_to_board_pos(gameBoard, coords) -> tuple:
     else:
         return -1 
 
+def inverse_board_pos(board_pos) -> tuple:
+    return (7-board_pos[0], 7-board_pos[1])
 
+def inverse_coords_pos(gameBoard, coords) -> tuple:
+    return ((2*gameBoard.position_of_board[0])+gameBoard.size_of_board-coords[0], (2*gameBoard.position_of_board[1])+gameBoard.size_of_board-coords[1])
+
+def draw_item(WINDOW, board, color_on_turn, image, coords = None, board_pos = False, switching = False, ) -> None:
+    if switching:
+        if color_on_turn == "black":
+            if coords != None:
+                coords = inverse_coords_pos(board, coords)
+            elif board_pos != None:
+                board_pos = inverse_board_pos(board_pos)
+            else:
+                print("Did not provide coords or board position for drawing item!")
+                return -1
+
+    if coords == None:
+        coords = board_pos_to_coords(board, board_pos)
+
+    WINDOW.blit(image, coords)
 
 class Board():
     def __init__(self, WIDTH: int = 800, HEIGHT: int = 800):
@@ -137,8 +157,12 @@ class Board():
 
         self.rec.update(*self.position_of_board, self.size_of_board, self.size_of_board)
 
-    def select_piece(self, mouse_x: float, mouse_y: float) -> None:
+    def select_piece(self, mouse_x: float, mouse_y: float, switching_board, color_on_turn) -> None:
         mouse_board_pos = coords_to_board_pos(self, (mouse_x, mouse_y))
+        if switching_board == True:
+                if color_on_turn == "black":
+                    mouse_board_pos = inverse_board_pos(mouse_board_pos)
+
         if mouse_board_pos != -1:
             mouse_on_piece = self.board[mouse_board_pos[0]][mouse_board_pos[1]]
             if mouse_on_piece != None:
@@ -340,6 +364,12 @@ class Piece():
     def attack(self, dest_board_pos) -> bool:
         des_col, des_row = dest_board_pos 
         attacked_piece = self.board.board[des_col][des_row]
+        
+        # If you attack piece attacking your king make king safe
+        if self.your_king.endangered:
+            if self.your_king.enemy_piece_attacking == attacked_piece:
+                self.your_king.endangered = False
+
         self.board.board[des_col][des_row] = None
         self.board.all_pieces.remove(attacked_piece)
         if attacked_piece.color == "white":
@@ -364,7 +394,7 @@ class Piece():
                 return False
 
 
-    def will_endanger_his_king(self):
+    def will_endanger_his_king(self, destination):
         king_state_b, king_state_w = self.board.black_king.endangered, self.board.white_king.endangered
         self.board.board[self.board_pos[0]][self.board_pos[1]] = None
         for piece in self.board.all_pieces:
@@ -375,17 +405,26 @@ class Piece():
             self.board.black_king.endangered, self.board.white_king.endangered = king_state_b, king_state_w
             return False
         else:
-            self.board.black_king.endangered, self.board.white_king.endangered = king_state_b, king_state_w
-            #print("--------------------------------------------------------endangered king ", self)
-            return True
+            
+            if destination == self.your_king.enemy_piece_attacking.board_pos:
+                #print("--------------------------------------------------------endangered king ", self)
+                #print(destination)
+                self.board.black_king.endangered, self.board.white_king.endangered = king_state_b, king_state_w
+                #print("==============================", self.board.black_king.endangered)
+                return False
+            else:
+
+                self.board.black_king.endangered, self.board.white_king.endangered = king_state_b, king_state_w
+                #print("--------------------------------------------------------endangered king ", self)
+                return True
 
     def valid_moves_append(self, des_col, des_row, attack, potent_pos_validation):
         if potent_pos_validation == False:
             if isinstance(self, King):
                 self.your_king = self
-                if not self.will_endanger_his_king():
+                if not self.will_endanger_his_king((des_col, des_row)):
                     self.valid_moves.append((des_col, des_row, attack))
-            elif (self.your_king.endangered == True) or (not self.will_endanger_his_king()):
+            elif (self.your_king.endangered == True) or (not self.will_endanger_his_king((des_col, des_row))):
                 self.valid_moves.append((des_col, des_row, attack))
 
 
